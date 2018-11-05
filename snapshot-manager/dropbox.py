@@ -61,7 +61,7 @@ class DropboxRemote(Remote):
         path = local_path(snapshot)
         created = arrow.get(snapshot["date"])
         size = bytes_to_human(os.path.getsize(path))
-        target = str(self.remote_path(self.dropbox_dir, snapshot))
+        target = str(self.remote_path(snapshot))
         self.LOG.info(f"Slug: {snapshot['slug']}")
         self.LOG.info(f"Created: {created}")
         self.LOG.info(f"Size: {size}")
@@ -107,3 +107,15 @@ class DropboxRemote(Remote):
     def upload(self, snapshot):
         self.LOG.info(f"Backing up to Dropbox directory: {self.dropbox_dir}")
         self._process_snapshot(self, snapshot)
+
+    def clean_remote(self, snapshot):
+        path = self.remote_path(snapshot)
+        self.LOG.info(f"Removing snapshot {path} from Dropbox...")
+        self
+
+    def _remove_snapshot(self, snapshot):
+        try:
+            meta = self.dbx.files_delete_v2(self.remote_path())
+            self.LOG.info(f"Snapshot deleted: {meta.path_display}")
+        except dropbox.exceptions.ApiError as e:
+            self.LOG.exception(e.__str__())

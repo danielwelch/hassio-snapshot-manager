@@ -14,17 +14,19 @@ class RemoteInitializationError(Exception):
 
 
 class Remote(object):
-    def __init__(self, remote_dir, use_filename):
+    def __init__(self, remote_dir, use_filename=False):
+        # directory in which to store snapshot files
         self.remote_dir = remote_dir
+        # use display name instead of slug for remote file path
         self.use_filename = use_filename
         self.LOG = logging.getLogger("snapshot_manager")
 
     def upload(self, snapshot):
         raise NotImplementedError
 
-    def clean(self, snapshot):
-        # remove certain snapshot from remote location?
-        # Maybe keep_last instead?
+    def clean_remote(self, snapshot):
+        # remove certain snapshot from remote location
+        # Maybe keep_last instead
         raise NotImplementedError
 
     def remote_path(self, snapshot):

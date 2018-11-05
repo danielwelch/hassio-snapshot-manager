@@ -1,7 +1,9 @@
 # TODO:
-# keep_last functionality
+# keep_last functionality => clean_local and keep_local option
 # only keep X number of snapshots in dropbox, deleting older ones...
 # extensibility of uploading (dropbox, google drive, etc.)
+# validate input
+# expose a string format for file name?
 
 # object oriented
 # watch backup dir with watchdog
@@ -37,8 +39,12 @@ def setup_logging(config):
     return log
 
 
-def hassio_get(path):
-    r = requests.get(f"http://hassio/{path}", headers=AUTH_HEADERS)
+def hassio_request(path, post=False):
+    if post is False:
+        r = requests.get(f"http://hassio/{path}", headers=AUTH_HEADERS)
+    else:
+
+        r = requests.post(f"http://hassio/{path}", headers=AUTH_HEADERS)
     r.raise_for_status()
     j = r.json()
     LOG = logging.getLogger("snapshot_manager")
@@ -47,7 +53,7 @@ def hassio_get(path):
 
 
 def list_snapshots():
-    snapshots = hassio_get("snapshots")["snapshots"]
+    snapshots = hassio_request("snapshots")["snapshots"]
     # Sort them by creation date, and reverse. We want to backup the most recent first
     snapshots.sort(key=lambda x: arrow.get(x["date"]))
     snapshots.reverse()
@@ -60,9 +66,29 @@ def load_config(path=DEFAULT_CONFIG):
 
 
 class SnapshotManager(object):
-    def __init__(self):
-        pass
-        # instantiate and assign multiple uploaders
+    def __init__(self, config):
+        # instantiate and assign multiple uploaders (remotes)
+        self.remotes = []
+        if config.get("dropbox_access_token", None):
+            dbx = DropboxRemote(
+                remote_dir=config.get("dropbox_dir", None),
+                use_filename=config.get("use_filename", False),
+                access_token=config["dropbox_access_token"])
+            self.remotes.push(dbx)
+
+    def remotes(self):
+        return self.remotes
+
+    def clean_local(self, keep):
+        # keep only the latest X number of snapshots, delete the rest
+        LOG.info("Cleaning up local snapshots. Keeping latest %d snapshots.",
+                 keep)
+        snapshots = list_snapshots()
+        stale = snapshots[keep + 1:]
+        for snapshot in stale:
+            LOG.info("Deleting snapshot {slug}".format(snapshot["slug"]))
+            path = "snapshots/{slug}/remove".format(snapshot["slug"])
+            hassio_request(path, post=True)
 
 
 def main():
@@ -70,13 +96,7 @@ def main():
     config = load_config(DEFAULT_CONFIG)
     setup_logging(config)
 
-    # determine which remote destinations to instantiate
-    remotes = []
-    if config.get("dropbox_access_token", None):
-        dbx = DropboxRemote(
-            remote_dir=config.get("dropbox_dir", None),
-            access_token=config["dropbox_access_token"])
-        remotes.push(dbx)
+    manager = SnapshotManager(config)
 
     while True:
         msg_str = sys.stdin.readline()
@@ -95,7 +115,14 @@ def main():
             for i, snapshot in enumerate(snapshots, start=1):
                 LOG.info(
                     f"Snapshot: {snapshot['name']} ({i}/{len(snapshots)})")
-                for r in remotes:
+                for r in manager.remotes():
                     r.upload(snapshot)
+        elif cmd == "clean_local":
+            try:
+                manager.clean_local(config["keep_local"])
+            except KeyError:
+                LOG.exception(
+                    "Cannot clean up local backups: keep_local option is not set."
+                )
         else:
             LOG.exception("Unknown command: %s", cmd)
