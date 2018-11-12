@@ -1,0 +1,19 @@
+{
+  "name": "Snapshot Manager",
+  "version": "0.1",
+  "slug": "snapshot-manager",
+  "description": "Automatically upload and manage your Hass.io snapshots",
+  "url": "https://github.com/danielwelch/hassio-snapshot-manager",
+  "startup": "before",
+  "boot": "auto",
+  "map": ["share:rw", "backup:rw"],
+  "hassio_role": "backup",
+  "hassio_api": true,
+  "options": {
+  },
+  "schema": {
+    "dropbox_token": "str?",
+    "dropbox_folder": "str?",
+  },
+  "image": "dwelch2101/snapshot-manager-{arch}"
+}

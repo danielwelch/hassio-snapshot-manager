@@ -1,12 +1,8 @@
 import logging
-import os
 import pathlib
 
-LOG = logging.getLogger("snapshot_manager")
 BACKUP_DIR = pathlib.Path("/backup/")
 CHUNK_SIZE = 4 * 1024 * 1024
-AUTH_HEADERS = {"X-HASSIO-KEY": os.environ.get("HASSIO_TOKEN")}
-DEFAULT_CONFIG = "/data/options.json"
 
 
 class RemoteInitializationError(Exception):
@@ -48,10 +44,3 @@ def bytes_to_human(nbytes):
 
 def local_path(snapshot):
     return BACKUP_DIR / f"{snapshot['slug']}.tar"
-
-
-def remote_path(remote_dir, snapshot, use_filename=False):
-    if use_filename:
-        return remote_dir / f"{snapshot['name']}.tar"
-    else:
-        return remote_dir / f"{snapshot['slug']}.tar"
